@@ -5,37 +5,43 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 )
 
 type LinkHandlerInterface interface {
-	HandleDoc() error
+	HandleDoc(string) error
 }
 
 type LinkHandler struct {
-	handlers          []func(*HandleParam)
-	startPageFileName string
-	url               *url.URL
-	links             chan DownloadParam
+	handlers []func(*HandleParam)
+	url      *url.URL
+	links    chan<- DownloadParam
+	wg       *sync.WaitGroup
 }
 
 func NewLinkHandler(
 	handleFuncs []func(*HandleParam),
-	startPageFilename string, url *url.URL,
-	links chan DownloadParam,
-) *LinkHandler {
-	return &LinkHandler{
-		handlers:          handleFuncs,
-		startPageFileName: startPageFilename,
-		url:               url,
-		links:             links,
+	url *url.URL,
+	links chan<- DownloadParam,
+	wg *sync.WaitGroup,
+) LinkHandler {
+	return LinkHandler{
+		handlers: handleFuncs,
+		url:      url,
+		links:    links,
+		wg:       wg,
 	}
 }
 
-func (l LinkHandler) HandleDoc() error {
-	var wg sync.WaitGroup
-	fd, err := os.Open(l.startPageFileName)
+func (l LinkHandler) HandleDoc(filename string) error {
+	_, err := os.Stat(filename)
+	if filepath.Ext(filename) != PARSING_FILE_EXT || err == nil {
+		return nil
+	}
+
+	fd, err := os.Open(filename)
 	if err != nil {
 		return fmt.Errorf("cannot open document: %s", err.Error())
 	}
@@ -47,15 +53,14 @@ func (l LinkHandler) HandleDoc() error {
 	}
 
 	for _, handler := range l.handlers {
-		wg.Add(1)
+		l.wg.Add(1)
 		go handler(&HandleParam{
 			document: doc,
-			group:    &wg,
+			group:    l.wg,
 			url:      l.url,
 			links:    l.links,
 		})
 	}
-	wg.Wait()
 
 	return nil
 }

@@ -23,7 +23,7 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	err := asyncparser.Start(os.Args[1], asyncparser.AppSettings{
+	err := asyncparser.Start(flag.Arg(0), asyncparser.AppSettings{
 		PathToSave:   *pathToSave,
 		DocumentName: *documentName,
 		IsForce:      *isForce,

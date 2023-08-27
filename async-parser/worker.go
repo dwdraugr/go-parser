@@ -3,54 +3,60 @@ package asyncparser
 import (
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type Worker struct {
-	settings AppSettings
-	url      *url.URL
-	links    chan DownloadParam
+	settings   AppSettings
+	links      <-chan DownloadParam
+	wg         *sync.WaitGroup
+	docHandler LinkHandlerInterface
 }
 
-func NewWorker(settings AppSettings, mainUrl *url.URL, links chan DownloadParam) *Worker {
+func NewWorker(settings AppSettings, links chan DownloadParam, docHandler LinkHandlerInterface, wg *sync.WaitGroup) *Worker {
 	return &Worker{
-		settings: settings,
-		url:      mainUrl,
-		links:    links,
+		settings:   settings,
+		links:      links,
+		docHandler: docHandler,
+		wg:         wg,
 	}
 }
 
 func (w Worker) Start() {
 	for link := range w.links {
 		func() {
+			slog.Info("downloading has been started", "url", link.url.String()+link.remoteFileName)
 			if w.isFileExist(link) && !w.settings.IsForce {
+				slog.Info("file %s already downloaded", "url", link.url.String()+link.remoteFileName)
 				return
 			}
-
 			reader, err := w.getDocument(link)
 			if err != nil {
-				log.Printf("cannot get document %s%s: %s", link.url, link.remoteFileName, err.Error())
+				slog.Error("cannot get document", "requestData", link, "err", err.Error())
 				return
 			}
 			defer reader.Close()
 
-			if err = w.saveDocument(reader, link); err != nil {
-				log.Printf("cannot save document %s%s: %s", link.url, link.localFileName, err.Error())
+			documentPath, err := w.saveDocument(reader, link)
+			if err != nil {
+				slog.Error("cannot save document", "requestData", link, "err", err.Error())
 				return
 			}
+			slog.Info("downloading has finished", "url", link.url.String()+link.remoteFileName)
 		}()
 	}
+	w.wg.Done()
 }
 
 func (w Worker) isFileExist(doc DownloadParam) bool {
 	path := filepath.Join(
 		w.settings.PathToSave,
-		w.url.Host,
+		doc.url.Host,
 		doc.url.Path,
 		doc.localFileName,
 	)
@@ -68,14 +74,14 @@ func (w Worker) getDocument(d DownloadParam) (io.ReadCloser, error) {
 	return response.Body, nil
 }
 
-func (w Worker) saveDocument(r io.ReadCloser, d DownloadParam) error {
+func (w Worker) saveDocument(r io.ReadCloser, d DownloadParam) (string, error) {
 	path := filepath.Join(
 		w.settings.PathToSave,
-		w.url.Host,
+		d.url.Host,
 		d.url.Path,
 	)
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
-		return fmt.Errorf("cannot create directories: %s", err.Error())
+		return "", fmt.Errorf("cannot create directories: %s", err.Error())
 	}
 
 	documentPath := filepath.Join(
@@ -84,13 +90,13 @@ func (w Worker) saveDocument(r io.ReadCloser, d DownloadParam) error {
 	)
 	fd, err := os.Create(documentPath)
 	if err != nil {
-		return fmt.Errorf("cannot create file: %s", err.Error())
+		return "", fmt.Errorf("cannot create file: %s", err.Error())
 	}
 	defer fd.Close()
 
 	if _, err := io.Copy(fd, r); err != nil {
-		return fmt.Errorf("cannot write file: %s", err.Error())
+		return "", fmt.Errorf("cannot write file: %s", err.Error())
 	}
 
-	return nil
+	return documentPath, err
 }

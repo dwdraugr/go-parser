@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+const PARSING_FILE_EXT = ".html"
+
 type AppSettings struct {
 	PathToSave   string
 	DocumentName string
@@ -17,7 +19,7 @@ type HandleParam struct {
 	document *goquery.Document
 	group    *sync.WaitGroup
 	url      *url.URL
-	links    chan DownloadParam
+	links    chan<- DownloadParam
 }
 
 type DownloadParam struct {
