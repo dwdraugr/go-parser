@@ -7,9 +7,10 @@ import (
 )
 
 type AppSettings struct {
-	PathToSave        string
-	DocumentName      string
-	DocumentExtension string
+	PathToSave   string
+	DocumentName string
+	IsForce      bool
+	WorkersNum   int
 }
 
 type HandleParam struct {

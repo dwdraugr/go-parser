@@ -3,6 +3,7 @@ package asyncparser
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -11,33 +12,45 @@ import (
 )
 
 type Worker struct {
-	Settings AppSettings
-	Url      *url.URL
-	IsForce  bool
+	settings AppSettings
+	url      *url.URL
+	links    chan DownloadParam
 }
 
-func (w Worker) Start(links <-chan DownloadParam) {
-	for link := range links {
-		if w.isFileExist(link) && !w.IsForce {
-			continue
-		}
+func NewWorker(settings AppSettings, mainUrl *url.URL, links chan DownloadParam) *Worker {
+	return &Worker{
+		settings: settings,
+		url:      mainUrl,
+		links:    links,
+	}
+}
 
-		reader, err := w.getDocument(link)
-		if err != nil {
-			continue
-		}
-		defer reader.Close()
+func (w Worker) Start() {
+	for link := range w.links {
+		func() {
+			if w.isFileExist(link) && !w.settings.IsForce {
+				return
+			}
 
-		if err = w.saveDocument(reader, link); err != nil {
-			continue
-		}
+			reader, err := w.getDocument(link)
+			if err != nil {
+				log.Printf("cannot get document %s%s: %s", link.url, link.remoteFileName, err.Error())
+				return
+			}
+			defer reader.Close()
+
+			if err = w.saveDocument(reader, link); err != nil {
+				log.Printf("cannot save document %s%s: %s", link.url, link.localFileName, err.Error())
+				return
+			}
+		}()
 	}
 }
 
 func (w Worker) isFileExist(doc DownloadParam) bool {
 	path := filepath.Join(
-		w.Settings.PathToSave,
-		w.Url.Host,
+		w.settings.PathToSave,
+		w.url.Host,
 		doc.url.Path,
 		doc.localFileName,
 	)
@@ -48,7 +61,6 @@ func (w Worker) isFileExist(doc DownloadParam) bool {
 func (w Worker) getDocument(d DownloadParam) (io.ReadCloser, error) {
 	requestUrl := strings.Join([]string{d.url.String(), d.remoteFileName}, "/")
 	response, err := http.Get(requestUrl)
-	fmt.Println(response.StatusCode)
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %s", err.Error())
 	}
@@ -58,8 +70,8 @@ func (w Worker) getDocument(d DownloadParam) (io.ReadCloser, error) {
 
 func (w Worker) saveDocument(r io.ReadCloser, d DownloadParam) error {
 	path := filepath.Join(
-		w.Settings.PathToSave,
-		w.Url.Host,
+		w.settings.PathToSave,
+		w.url.Host,
 		d.url.Path,
 	)
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
@@ -80,6 +92,5 @@ func (w Worker) saveDocument(r io.ReadCloser, d DownloadParam) error {
 		return fmt.Errorf("cannot write file: %s", err.Error())
 	}
 
-	println("saved ", documentPath)
 	return nil
 }
