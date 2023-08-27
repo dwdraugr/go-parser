@@ -1,0 +1,28 @@
+= Go web parsing
+
+The repo provide completed test issue - web crawler which support downloading
+html, css and js in multiprocess mode
+
+== Build
+
+[source,sh]
+----
+go build
+----
+
+== Usage
+Basic usage
+
+[source,sh]
+----
+./go-parser https://go.dev
+----
+
+Usage with some options
+
+[source,sh]
+----
+./go-parser https://github.com -path $HOME -force t -workers 10
+----
+
+All supported options you can check with `./go-parse -help`
