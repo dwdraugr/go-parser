@@ -1,6 +1,9 @@
 name: Go package
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -14,5 +17,5 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build
+      - name: Build For several platform
         run: go build -v ./...
