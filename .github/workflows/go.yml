@@ -1,5 +1,6 @@
 name: Go package
-
+permissions:
+  contents: write
 on:
   push:
     tags:
