@@ -3,6 +3,10 @@
 The repo provide completed test issue - web crawler which support downloading
 html, css and js in multiprocess mode
 
+== Installation
+You just need to build project, or you can download needed binary from
+https://github.com/dwdraugr/go-parser/releases/[releases page]
+
 == Build
 
 [source,sh]
