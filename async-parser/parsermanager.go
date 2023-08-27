@@ -43,7 +43,6 @@ func Start(rawUrl string, settings AppSettings) error {
 		url:            exactUrl,
 		remoteFileName: "",
 		localFileName:  settings.DocumentName,
-		depth:          DEPTH,
 	}
 
 	wg.Wait()

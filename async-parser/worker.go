@@ -42,7 +42,7 @@ func (w Worker) Start() {
 			}
 			defer reader.Close()
 
-			documentPath, err := w.saveDocument(reader, link)
+			_, err = w.saveDocument(reader, link)
 			if err != nil {
 				slog.Error("cannot save document", "requestData", link, "err", err.Error())
 				return
