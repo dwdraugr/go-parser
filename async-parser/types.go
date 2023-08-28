@@ -11,6 +11,7 @@ type AppSettings struct {
 	DocumentName string
 	IsForce      bool
 	WorkersNum   int
+	depth        int
 }
 
 type HandleParam struct {
@@ -18,10 +19,17 @@ type HandleParam struct {
 	group    *sync.WaitGroup
 	url      *url.URL
 	links    chan DownloadParam
+	depth    int
 }
 
 type DownloadParam struct {
 	url            *url.URL
 	remoteFileName string
 	localFileName  string
+	depth          int
+}
+
+type HandleDocument struct {
+	filename string
+	depth    int
 }
